@@ -5,11 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-"""
-Infrequent writes, semifrequent reads
-Maintain an open connection to DB, 
-"""
-
 class DatabaseClient():
 
     def __init__(self):

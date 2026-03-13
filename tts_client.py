@@ -1,5 +1,4 @@
 import requests
-
 import json
 
 from base64 import b64decode

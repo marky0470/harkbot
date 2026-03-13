@@ -3,12 +3,7 @@ from pymongo import MongoClient
 from db_client import DatabaseClient
 from tts_client import TTSClient
 
-import os
-from dotenv import load_dotenv
-
 from functools import lru_cache
-
-load_dotenv()
 
 class AudioService:
 
