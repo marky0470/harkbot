@@ -1,12 +1,12 @@
-from audio_service import AudioService
+import io
+import os
 
 import discord
-
-import io
-from base64 import b64decode
-
-import os
 from dotenv import load_dotenv
+import json
+
+from audio_service import AudioService
+from command_handler import CommandHandler
 
 load_dotenv()
 
@@ -14,50 +14,56 @@ class Bot(discord.Client):
 
     def __init__(self, *, intents, **options):
         self.audio_service = AudioService()
+        self.command_handler = CommandHandler(self)
         super().__init__(intents=intents, **options)
-        
+    
+    #TODO: cfg - only hark for users that have !!hark(ed) once
     async def on_ready(self):
-        self.target_channel = self.get_channel(1040523486864621628)
-        pass
+        with open("config.json", "r") as f: #need try block or something, might fail and config is None
+            config = json.load(f)
+        self.target_channel = self.get_channel(config["target_channel"])
 
     async def on_voice_state_update(self, member, before, after):
         if member == self.user:
             return
-    
-        if before.channel is not self.target_channel and after.channel is self.target_channel:
-            if len(self.target_channel.members) >= 1:
-                await self.target_channel.connect()
-                audio_data = self.audio_service.get_audio(member.name)
-                self.voice_clients[0].play(discord.FFmpegPCMAudio(pipe=True, source=io.BytesIO(audio_data)))
+        
+        target_channel = self.target_channel
+        joined_target = (before.channel is not target_channel and after.channel is target_channel)
+        left_target = not joined_target
 
-        elif before.channel is self.target_channel and after.channel is not self.target_channel:
-            if len(self.target_channel.members) <= 1 and self.voice_clients:
+        if joined_target:
+            if len(target_channel.members) >= 1:
+                await self.play_audio(member.id, member.name)
+        elif left_target:
+            if len(target_channel.members) <= 1 and self.voice_clients:
                 await self.voice_clients[0].disconnect()
-    """
-    !!setself -Sets the user's audio file to attached embed
-    !!setuser <user> -Sets specified user's audio file to attached embed
-    !!nohark -No custom sound will be played for the sender of this command
-    """
+   
     async def on_message(self, message):
-        if not message.content.startswith("!!"):
+        if not message.content.startswith("!!") or message.author == self.user:
             return
-    
-        m = message.content.split(" ")
-        match m[0]:
-            case "!!setself":
-                print("setself detected, updating audio...")
-                audio_data = await message.attachments[0].to_file()
-                self.audio_service.update_audio(message.author.name, audio_data.fp.read())
-        # if message.channel == self.get_channel(1481607481820975104) and message.author != self.user:
-        #     await message.channel.send("Message detected")
-        #     print(message.attachments)
-        # pass
+        await self.command_handler.handle_command(message)
+
+    async def play_audio(self, user_id: int, username: str = None): #make the chain not dependent on username, userid only
+        if self.audio_service.get_use_audio(user_id) == False:
+            return
+        
+        if not self.voice_clients:
+            await self.target_channel.connect()
+            
+        audio_data = self.audio_service.get_audio(username, user_id)
+        self.voice_clients[0].play(discord.FFmpegPCMAudio(pipe=True, source=io.BytesIO(audio_data)))
+
+    def set_target_channel(self, target_channel: discord.Channel):
+        with open("config.json", "w") as f:
+            json.dump({"target_channel": target_channel.id}, f)
+        self.target_channel = target_channel
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
+intents.members = True
 
-b = Bot(command_prefix="", intents=intents)
+b = Bot(intents=intents)
 
 b.run(os.getenv('DISCORD_KEY'))
 
