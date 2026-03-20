@@ -1,23 +1,23 @@
 import io
 
 import discord
-import json
 
 from audio_service import AudioService
 from command_handler import CommandHandler
+from config_helper import ConfigHelper
 
 class Bot(discord.Client):
 
     def __init__(self, *, intents, **options):
         self.audio_service = AudioService()
         self.command_handler = CommandHandler(self)
+        self.config_helper = ConfigHelper()
         super().__init__(intents=intents, **options)
     
-    #TODO: cfg - only hark for users that have !!hark(ed) once
+    #TODO: cfg - only hark for users that have !!hark(ed) once opt-in: true -> users joining | no-tts: bool -> no tts audio
     async def on_ready(self):
-        with open("config.json", "r") as f: #need try block or something, might fail and config is None
-            config = json.load(f)
-        self.target_channel = self.get_channel(config["target_channel"])
+        target_channel = self.config_helper.get_config("target_channel")
+        self.target_channel = self.get_channel(target_channel)
 
     async def on_voice_state_update(self, member, before, after):
         if member == self.user:
@@ -50,6 +50,5 @@ class Bot(discord.Client):
         self.voice_clients[0].play(discord.FFmpegPCMAudio(pipe=True, source=io.BytesIO(audio_data)))
 
     def set_target_channel(self, target_channel: discord.Channel):
-        with open("config.json", "w") as f:
-            json.dump({"target_channel": target_channel.id}, f)
+        self.config_helper.set_config("target_channel", target_channel.id)
         self.target_channel = target_channel
