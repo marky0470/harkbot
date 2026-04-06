@@ -1,4 +1,5 @@
 from discord import Attachment
+from audio_service import AudioService
 
 help_message = """\t
     !!setself -Sets the user's audio file to attachment given
@@ -14,6 +15,7 @@ class CommandHandler:
 
     def __init__(self, bot):
         self.bot = bot
+        self.audio_service : AudioService = bot.audio_service
         pass
 
     #TODO: !!setaudio, if no additional param, set author's audio, otherwise use id passed in, same for !!hark and !!nohark (priviledged roles can disable other user harks, )
@@ -57,11 +59,11 @@ class CommandHandler:
             return
         await self.last_command_channel.send(f"Setting audio for user: {user.name}, enabling HarkBot for them.") 
         audio_data = await attachment.to_file()
-        bot.audio_service.update_audio(user_id, audio_data.fp.read())
+        self.audio_service.update_audio(user_id, audio_data.fp.read())
 
     async def update_use_audio_for_user(self, user_id: int, use_audio: bool):
         await self.last_command_channel.send(f"{"Enabled" if use_audio else "Disabled"} HarkBot for you.")
-        self.bot.audio_service.update_use_audio(user_id, use_audio) 
+        self.audio_service.update_use_audio(user_id, use_audio) 
 
 #questions: how much responsibility should command handler's hold? should the functions immediately delegate to the appropriate class
 # and leave validation and status messages to them?
