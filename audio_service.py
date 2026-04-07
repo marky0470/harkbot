@@ -1,4 +1,7 @@
 from functools import lru_cache
+from io import BytesIO
+
+import soundfile as sf
 
 from db_client import DatabaseClient
 from tts_client import TTSClient
@@ -26,6 +29,10 @@ class AudioService:
     
     def update_audio(self, user_id: int, audio_data: bytes) -> None:
         self.db_client.update_audio(user_id, audio_data)
+
+    def get_audio_duration(self, audio_data: bytes) -> float:
+        with open(BytesIO(audio_data)) as f:
+            return sf.info(f).duration
     
     def get_use_audio(self, user_id: int) -> bool | None: #ok to return None?
         return self.db_client.get_use_audio(user_id)    
