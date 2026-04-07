@@ -20,7 +20,7 @@ class Bot(discord.Client):
         self.target_channel = self.get_channel(target_channel)
 
     async def on_voice_state_update(self, member, before, after):
-        if member == self.user:
+        if member == self.user and not self.is_ready():# this may run before target channel loaded when user joins before ready, handle that
             return
         
         target_channel = self.target_channel
