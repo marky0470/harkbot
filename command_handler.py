@@ -1,7 +1,5 @@
-from io import BytesIO
-
-from discord import Attachment
-import soundfile as sf
+from discord import Attachment, Message
+from soundfile import LibsndfileError
 
 from audio_service import AudioService
 
@@ -23,11 +21,11 @@ class CommandHandler:
         pass
 
     #TODO: !!setaudio, if no additional param, set author's audio, otherwise use id passed in, same for !!hark and !!nohark (priviledged roles can disable other user harks, )
-    async def handle_command(self, command):
+    async def handle_command(self, command : Message):
         cmd, *args = command.content.split(" ")
         author = command.author
         self.last_command_channel = command.channel
-        attachment = command.attachments or None
+        attachment = command.attachments[0] if command.attachments else None
         match cmd:
             case "!!help":
                 await command.channel.send(help_message)
@@ -59,23 +57,27 @@ class CommandHandler:
         bot.set_target_channel(target_channel)
         if bot.voice_clients: await bot.voice_clients[0].disconnect()
         
-    async def update_audio_for_user(self, user_id: int, attachment: Attachment): #we are using attachment[0], what is passed is still list of attachments FIX
+    async def update_audio_for_user(self, user_id: int, attachment: Attachment):
         bot = self.bot
         user = bot.guilds[0].get_member(user_id)
         if user is None:
             await self.last_command_channel.send("No user with that ID found.")
             return
-        if attachment[0] is None:
+        if attachment is None:
             await self.last_command_channel.send("No attachment was included.")
             return
-        duration = self.audio_service.get_audio_duration(await attachment[0].read())
+        audio_data = await attachment.read()
+        try:
+            duration = self.audio_service.get_audio_duration(audio_data)
+        except LibsndfileError:
+            await self.last_command_channel.send("Audio file format not recognized, or file corrupted.")
+            return
         if duration > 5.0:
-            await self.last_command_channel.send("Audio file is too long, maximum duration is 5 seconds")
+            await self.last_command_channel.send("Audio file is too long, maximum duration is 5 seconds.")
             return
 
         await self.last_command_channel.send(f"Setting audio for user: {user.name}, enabling HarkBot for them.") 
-        audio_data = await attachment[0].to_file()
-        self.audio_service.update_audio(user_id, audio_data.fp.read())
+        self.audio_service.update_audio(user_id, audio_data)
 
     async def play_audio_for_user(self, user_id: int):
         bot = self.bot
