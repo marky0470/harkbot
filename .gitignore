@@ -1,3 +1,6 @@
 .env
 .cpython
-.mp3
+*.mp3
+*.wav
+node_modules
+__pycache__/*
