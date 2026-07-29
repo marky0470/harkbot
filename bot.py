@@ -46,8 +46,10 @@ class Bot(discord.Client):
         if not self.voice_clients:
             await self.target_channel.connect()
             
+        voice_client = self.voice_clients[0]
         audio_data = self.audio_service.get_audio(username, user_id)
-        self.voice_clients[0].play(discord.FFmpegPCMAudio(pipe=True, source=io.BytesIO(audio_data)))
+        if voice_client.is_connected():
+            voice_client.play(discord.FFmpegPCMAudio(pipe=True, source=io.BytesIO(audio_data)))
 
     def set_target_channel(self, target_channel: discord.Channel):
         self.config_helper.set_config("target_channel", target_channel.id)
